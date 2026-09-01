@@ -41,7 +41,7 @@ export interface PipelineError {
 
 export type DepthRequest =
   | { type: 'init'; modelId: string; device: 'webgpu' | 'wasm' }
-  | { type: 'predict'; id: number; canvas: OffscreenCanvas };
+  | { type: 'predict'; id: number; imageData: ImageData };
 
 export type DepthResponse =
   | { type: 'init-done'; modelId: string; device: 'webgpu' | 'wasm' }

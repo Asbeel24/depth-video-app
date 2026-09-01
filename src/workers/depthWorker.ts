@@ -51,7 +51,7 @@ self.onmessage = async (e: MessageEvent<DepthRequest>) => {
     }
     try {
       // transformers.js v3 accepts OffscreenCanvas / HTMLCanvasElement / ImageData / Blob directly.
-      const result = await pipe(msg.canvas);
+      const result = await pipe(msg.imageData);
       const depth = result.depth;
       const out: DepthResponse = {
         type: 'predict-done',

@@ -131,12 +131,14 @@ export const useDepthPipelineStore = create<PipelineState & PipelineActions>((se
 
         const bmp = frames[i];
         // transformers.js v3 accepts OffscreenCanvas / HTMLCanvasElement / ImageData / Blob — but NOT ImageBitmap.
+        // ImageBitmap and OffscreenCanvas-with-context aren't transferable as-is; ImageData IS, so we use that path.
         const off = new OffscreenCanvas(TARGET_INPUT, TARGET_INPUT);
         const ctx = off.getContext('2d');
         if (!ctx) throw new Error('Failed to get 2D context');
         ctx.drawImage(bmp, 0, 0, TARGET_INPUT, TARGET_INPUT);
+        const imageData = ctx.getImageData(0, 0, TARGET_INPUT, TARGET_INPUT);
 
-        const depthRes = await predictFrame(depth, i, off);
+        const depthRes = await predictFrame(depth, i, imageData);
         const resized = resizeDepth(depthRes.depth, depthRes.width, depthRes.height, meta.width, meta.height);
 
         const colorRes = await applyColormapToFrame(colormap, i, resized, meta.width, meta.height, palette, invert);
@@ -225,7 +227,7 @@ function initDepthWorker(worker: Worker, initMsg: Extract<DepthRequest, { type: 
 function predictFrame(
   worker: Worker,
   id: number,
-  canvas: OffscreenCanvas,
+  imageData: ImageData,
 ): Promise<Extract<DepthResponse, { type: 'predict-done' }>> {
   return new Promise((resolve, reject) => {
     const handler = (e: MessageEvent<DepthResponse>) => {
@@ -238,8 +240,8 @@ function predictFrame(
       }
     };
     worker.addEventListener('message', handler);
-    // OffscreenCanvas is transferable (not cloneable) — must be in the transfer list.
-    worker.postMessage({ type: 'predict', id, canvas } as DepthRequest, [canvas]);
+    // Transfer the underlying pixel buffer to avoid a copy across the worker boundary.
+    worker.postMessage({ type: 'predict', id, imageData } as DepthRequest, [imageData.data.buffer]);
   });
 }
 
