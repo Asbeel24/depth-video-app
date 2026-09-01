@@ -9,12 +9,11 @@ async function init(modelId: string, device: 'webgpu' | 'wasm') {
   const { pipeline, env } = await import('@huggingface/transformers');
   env.allowLocalModels = false;
   env.useBrowserCache = true;
-  // Provide a jsDelivr mirror as fallback for users behind GFW / restricted networks
   try {
     env.remoteHost = 'https://huggingface.co';
     env.remotePathTemplate = '{model}/resolve/{revision}/';
   } catch {
-    // some versions don't expose these
+    // older versions don't expose these
   }
   console.log('[depthWorker] loading model', modelId, 'device', device);
   try {
@@ -51,8 +50,8 @@ self.onmessage = async (e: MessageEvent<DepthRequest>) => {
       return;
     }
     try {
-      // transformers.js accepts ImageBitmap directly via RawImage.from()
-      const result = await pipe(msg.bitmap);
+      // transformers.js v3 accepts OffscreenCanvas / HTMLCanvasElement / ImageData / Blob directly.
+      const result = await pipe(msg.canvas);
       const depth = result.depth;
       const out: DepthResponse = {
         type: 'predict-done',

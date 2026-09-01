@@ -39,7 +39,9 @@ export interface PipelineError {
 
 /* ----- Depth Worker ----- */
 
-export type DepthRequest = { type: 'init'; modelId: string; device: 'webgpu' | 'wasm' } | { type: 'predict'; id: number; bitmap: ImageBitmap };
+export type DepthRequest =
+  | { type: 'init'; modelId: string; device: 'webgpu' | 'wasm' }
+  | { type: 'predict'; id: number; canvas: OffscreenCanvas };
 
 export type DepthResponse =
   | { type: 'init-done'; modelId: string; device: 'webgpu' | 'wasm' }

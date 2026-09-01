@@ -130,12 +130,13 @@ export const useDepthPipelineStore = create<PipelineState & PipelineActions>((se
         if (!get().running) throw new Error('cancelled');
 
         const bmp = frames[i];
+        // transformers.js v3 accepts OffscreenCanvas / HTMLCanvasElement / ImageData / Blob — but NOT ImageBitmap.
         const off = new OffscreenCanvas(TARGET_INPUT, TARGET_INPUT);
         const ctx = off.getContext('2d');
         if (!ctx) throw new Error('Failed to get 2D context');
         ctx.drawImage(bmp, 0, 0, TARGET_INPUT, TARGET_INPUT);
 
-        const depthRes = await predictFrame(depth, i, off.transferToImageBitmap());
+        const depthRes = await predictFrame(depth, i, off);
         const resized = resizeDepth(depthRes.depth, depthRes.width, depthRes.height, meta.width, meta.height);
 
         const colorRes = await applyColormapToFrame(colormap, i, resized, meta.width, meta.height, palette, invert);
@@ -224,7 +225,7 @@ function initDepthWorker(worker: Worker, initMsg: Extract<DepthRequest, { type: 
 function predictFrame(
   worker: Worker,
   id: number,
-  bitmap: ImageBitmap,
+  canvas: OffscreenCanvas,
 ): Promise<Extract<DepthResponse, { type: 'predict-done' }>> {
   return new Promise((resolve, reject) => {
     const handler = (e: MessageEvent<DepthResponse>) => {
@@ -237,7 +238,7 @@ function predictFrame(
       }
     };
     worker.addEventListener('message', handler);
-    worker.postMessage({ type: 'predict', id, bitmap } as DepthRequest);
+    worker.postMessage({ type: 'predict', id, canvas } as DepthRequest);
   });
 }
 
