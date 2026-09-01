@@ -28,6 +28,7 @@ export interface PipelineProgress {
   processedFrames: number;
   fps: number;
   etaSeconds: number;
+  message?: string;
 }
 
 export interface PipelineError {

@@ -17,7 +17,7 @@ const STAGE_LABEL: Record<PipelineProgress['stage'], string> = {
   colormapping: 'Coloring',
   encoding: 'Encoding video',
   ready: 'Done',
-  error: 'Error',
+  error: 'Failed',
 };
 
 export function PipelineStatus({ progress, running, canStart, onStart, onCancel }: Props) {
@@ -27,12 +27,14 @@ export function PipelineStatus({ progress, running, canStart, onStart, onCancel 
       : 0;
 
   const showProgress = running && (progress.stage === 'inferring' || progress.stage === 'colormapping' || progress.stage === 'encoding');
+  const isError = progress.stage === 'error';
 
   return (
     <div className="space-y-4 rounded-lg hairline bg-surface-2/50 p-5">
       <div className="flex items-center justify-between font-mono text-xs uppercase tracking-wider text-ink-muted">
-        <span>{STAGE_LABEL[progress.stage]}</span>
+        <span className={isError ? 'text-red-300' : ''}>{STAGE_LABEL[progress.stage]}</span>
         {running && progress.etaSeconds > 0 && <span>~{Math.ceil(progress.etaSeconds)}s left</span>}
+        {progress.message && running && <span className="text-ink-muted/70">{progress.message}</span>}
       </div>
 
       <div
@@ -44,7 +46,9 @@ export function PipelineStatus({ progress, running, canStart, onStart, onCancel 
         aria-label="Processing progress"
       >
         <div
-          className="h-full bg-accent transition-[width] duration-300"
+          className={`h-full transition-[width] duration-300 ${
+            isError ? 'bg-red-500' : 'bg-accent'
+          }`}
           style={{
             width:
               showProgress
@@ -58,6 +62,17 @@ export function PipelineStatus({ progress, running, canStart, onStart, onCancel 
           }}
         />
       </div>
+
+      {progress.message && !running && (
+        <p
+          role="alert"
+          className={`font-mono text-xs ${
+            isError ? 'text-red-300' : 'text-ink-muted'
+          }`}
+        >
+          {progress.message}
+        </p>
+      )}
 
       <div className="flex items-center justify-between text-xs text-ink-muted font-mono">
         <span>
@@ -74,7 +89,7 @@ export function PipelineStatus({ progress, running, canStart, onStart, onCancel 
             disabled={!canStart}
             className="flex-1 rounded-md bg-accent px-5 py-3 font-mono text-sm font-medium text-black transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-accent"
           >
-            Start processing
+            {isError ? 'Try again' : 'Start processing'}
             <span className="ml-2 hidden text-xs opacity-60 sm:inline">⌘ ↵</span>
           </button>
         ) : (

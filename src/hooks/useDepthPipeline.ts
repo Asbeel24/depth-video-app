@@ -103,12 +103,14 @@ export const useDepthPipelineStore = create<PipelineState & PipelineActions>((se
 
       const caps = getBrowserCapabilities();
       const device: 'webgpu' | 'wasm' = caps.webgpu ? 'webgpu' : 'wasm';
+      console.log('[pipeline] device =', device, 'caps:', caps);
 
       const depth = new Worker(new URL('../workers/depthWorker.ts', import.meta.url), { type: 'module' });
       const colormap = new Worker(new URL('../workers/colormapWorker.ts', import.meta.url), { type: 'module' });
       const encoder = new Worker(new URL('../workers/encoderWorker.ts', import.meta.url), { type: 'module' });
 
       await initDepthWorker(depth, { type: 'init', modelId: MODEL_ID, device });
+      console.log('[pipeline] depth model initialised');
       await initEncoderWorker(encoder, {
         type: 'init',
         width: meta.width,
@@ -181,7 +183,9 @@ export const useDepthPipelineStore = create<PipelineState & PipelineActions>((se
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
+      const stack = err instanceof Error ? err.stack : undefined;
       const stage = get().progress.stage;
+      console.error('[pipeline] failed at stage', stage, message, stack);
       set({
         running: false,
         error: {
@@ -189,7 +193,7 @@ export const useDepthPipelineStore = create<PipelineState & PipelineActions>((se
           message,
           recoverable: !message.toLowerCase().includes('cancel'),
         },
-        progress: { ...initialProgress, stage: 'error' },
+        progress: { ...initialProgress, stage: 'error', message },
       });
     }
   },

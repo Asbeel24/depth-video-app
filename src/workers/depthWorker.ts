@@ -6,11 +6,24 @@ type DepthPipeline = (input: unknown) => Promise<{ depth: { data: Float32Array; 
 let pipe: DepthPipeline | null = null;
 
 async function init(modelId: string, device: 'webgpu' | 'wasm') {
-  // Dynamic import so Vite splits this out and avoids SSR issues
   const { pipeline, env } = await import('@huggingface/transformers');
   env.allowLocalModels = false;
   env.useBrowserCache = true;
-  pipe = (await pipeline('depth-estimation', modelId, { device, dtype: 'fp16' })) as unknown as DepthPipeline;
+  // Provide a jsDelivr mirror as fallback for users behind GFW / restricted networks
+  try {
+    env.remoteHost = 'https://huggingface.co';
+    env.remotePathTemplate = '{model}/resolve/{revision}/';
+  } catch {
+    // some versions don't expose these
+  }
+  console.log('[depthWorker] loading model', modelId, 'device', device);
+  try {
+    pipe = (await pipeline('depth-estimation', modelId, { device, dtype: 'fp16' })) as unknown as DepthPipeline;
+    console.log('[depthWorker] ready');
+  } catch (err) {
+    console.error('[depthWorker] init failed', err);
+    throw err;
+  }
 }
 
 self.onmessage = async (e: MessageEvent<DepthRequest>) => {
