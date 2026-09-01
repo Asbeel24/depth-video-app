@@ -16,13 +16,29 @@ async function init(modelId: string, device: 'webgpu' | 'wasm') {
     // older versions don't expose these
   }
   console.log('[depthWorker] loading model', modelId, 'device', device);
-  try {
-    pipe = (await pipeline('depth-estimation', modelId, { device, dtype: 'fp16' })) as unknown as DepthPipeline;
-    console.log('[depthWorker] ready');
-  } catch (err) {
-    console.error('[depthWorker] init failed', err);
-    throw err;
+
+  // Apple / Safari / older drivers often lack fp16 support on WebGPU.
+  // Try fp16 first (faster), fall back to fp32 (works everywhere), then wasm.
+  type Dev = 'webgpu' | 'wasm';
+  type Dt = 'fp16' | 'fp32';
+  const dtypes: Dt[] = device === 'webgpu' ? ['fp16', 'fp32'] : ['fp32'];
+  const devices: Dev[] = device === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'];
+
+  let lastErr: unknown = null;
+  for (const dev of devices) {
+    for (const dt of dtypes) {
+      try {
+        console.log(`[depthWorker] try device=${dev} dtype=${dt}`);
+        pipe = (await pipeline('depth-estimation', modelId, { device: dev, dtype: dt })) as unknown as DepthPipeline;
+        console.log(`[depthWorker] ready (device=${dev}, dtype=${dt})`);
+        return;
+      } catch (err) {
+        console.warn(`[depthWorker] device=${dev} dtype=${dt} failed:`, err);
+        lastErr = err;
+      }
+    }
   }
+  throw lastErr instanceof Error ? lastErr : new Error('Model init failed');
 }
 
 self.onmessage = async (e: MessageEvent<DepthRequest>) => {
