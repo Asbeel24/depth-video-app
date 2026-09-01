@@ -1,0 +1,16 @@
+/* Typography — display + body */
+.font-display {
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+  font-feature-settings: 'ss01', 'cv11';
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.font-mono {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  letter-spacing: -0.01em;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
