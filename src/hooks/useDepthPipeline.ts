@@ -238,7 +238,8 @@ function predictFrame(
       }
     };
     worker.addEventListener('message', handler);
-    worker.postMessage({ type: 'predict', id, canvas } as DepthRequest);
+    // OffscreenCanvas is transferable (not cloneable) — must be in the transfer list.
+    worker.postMessage({ type: 'predict', id, canvas } as DepthRequest, [canvas]);
   });
 }
 
