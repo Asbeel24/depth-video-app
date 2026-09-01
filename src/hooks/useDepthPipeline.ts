@@ -130,15 +130,17 @@ export const useDepthPipelineStore = create<PipelineState & PipelineActions>((se
         if (!get().running) throw new Error('cancelled');
 
         const bmp = frames[i];
-        // transformers.js v3 accepts OffscreenCanvas / HTMLCanvasElement / ImageData / Blob — but NOT ImageBitmap.
-        // ImageBitmap and OffscreenCanvas-with-context aren't transferable as-is; ImageData IS, so we use that path.
+        // transformers.js v3 accepts: HTMLImageElement / HTMLCanvasElement / HTMLVideoElement /
+        // ImageBitmap / OffscreenCanvas (without rendering context) / Blob / URL string.
+        // We can't keep a 2D context attached AND transfer/clone an OffscreenCanvas, so we
+        // snapshot the drawn frame to a PNG Blob — Blob is structured-cloneable cleanly.
         const off = new OffscreenCanvas(TARGET_INPUT, TARGET_INPUT);
         const ctx = off.getContext('2d');
         if (!ctx) throw new Error('Failed to get 2D context');
         ctx.drawImage(bmp, 0, 0, TARGET_INPUT, TARGET_INPUT);
-        const imageData = ctx.getImageData(0, 0, TARGET_INPUT, TARGET_INPUT);
+        const blob = await off.convertToBlob({ type: 'image/png' });
 
-        const depthRes = await predictFrame(depth, i, imageData);
+        const depthRes = await predictFrame(depth, i, blob);
         const resized = resizeDepth(depthRes.depth, depthRes.width, depthRes.height, meta.width, meta.height);
 
         const colorRes = await applyColormapToFrame(colormap, i, resized, meta.width, meta.height, palette, invert);
@@ -227,7 +229,7 @@ function initDepthWorker(worker: Worker, initMsg: Extract<DepthRequest, { type: 
 function predictFrame(
   worker: Worker,
   id: number,
-  imageData: ImageData,
+  blob: Blob,
 ): Promise<Extract<DepthResponse, { type: 'predict-done' }>> {
   return new Promise((resolve, reject) => {
     const handler = (e: MessageEvent<DepthResponse>) => {
@@ -240,8 +242,8 @@ function predictFrame(
       }
     };
     worker.addEventListener('message', handler);
-    // Transfer the underlying pixel buffer to avoid a copy across the worker boundary.
-    worker.postMessage({ type: 'predict', id, imageData } as DepthRequest, [imageData.data.buffer]);
+    // Blob is structured-cloneable; no transfer list needed.
+    worker.postMessage({ type: 'predict', id, blob } as DepthRequest);
   });
 }
 

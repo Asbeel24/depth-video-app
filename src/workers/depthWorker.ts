@@ -50,8 +50,10 @@ self.onmessage = async (e: MessageEvent<DepthRequest>) => {
       return;
     }
     try {
-      // transformers.js v3 accepts OffscreenCanvas / HTMLCanvasElement / ImageData / Blob directly.
-      const result = await pipe(msg.imageData);
+      // transformers.js v3 input types: HTMLImageElement / HTMLCanvasElement / HTMLVideoElement /
+// ImageBitmap / OffscreenCanvas (context-less) / Blob / URL string.
+// Blob is the portable cross-worker choice — it's structured-cloneable without a transfer list.
+      const result = await pipe(msg.blob);
       const depth = result.depth;
       const out: DepthResponse = {
         type: 'predict-done',
